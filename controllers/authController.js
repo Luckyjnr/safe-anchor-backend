@@ -14,7 +14,7 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-// Victim registration
+// Victim registration with email verification
 const register = async (req, res) => {
   try {
     const { email, password, confirmPassword, firstName, lastName, phone } = req.body;
@@ -29,6 +29,9 @@ const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate email verification token
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+
     user = new User({
       email,
       password: hashedPassword,
@@ -36,7 +39,8 @@ const register = async (req, res) => {
       firstName,
       lastName,
       phone,
-      isVerified: false
+      isVerified: false,
+      emailVerificationToken
     });
 
     await user.save();
@@ -44,33 +48,57 @@ const register = async (req, res) => {
     // Create Victim document after user registration
     await new Victim({ userId: user._id }).save();
 
-    const payload = { userId: user._id, userType: user.userType };
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-    const refreshTokenValue = crypto.randomBytes(40).toString('hex');
-
-    await new RefreshToken({
-      userId: user._id,
-      token: refreshTokenValue,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    }).save();
+    // Send verification email
+    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${emailVerificationToken}`;
+    await transporter.sendMail({
+      from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Verify Your Email',
+      html: `
+        <p>Welcome to Safe Anchor!</p>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${verificationUrl}">${verificationUrl}</a>
+        <p>If you did not register, please ignore this email.</p>
+      `
+    });
 
     res.status(201).json({
-      accessToken,
-      refreshToken: refreshTokenValue,
-      user: payload
+      msg: 'Registration successful. Please check your email to verify your account.',
+      user: { userId: user._id, userType: user.userType }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
 };
 
-// Victim login
+// Email verification endpoint
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const user = await User.findOne({ emailVerificationToken: token });
+    if (!user) return res.status(400).json({ msg: 'Invalid or expired verification token' });
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    await user.save();
+
+    res.json({ msg: 'Email verified successfully. You can now log in.' });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Victim login (only if verified)
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
+
+    if (!user.isVerified) {
+      return res.status(401).json({ msg: 'Please verify your email before logging in.' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
@@ -186,4 +214,12 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, logout, refreshToken, forgotPassword, resetPassword };
+module.exports = {
+  register,
+  verifyEmail,
+  login,
+  logout,
+  refreshToken,
+  forgotPassword,
+  resetPassword
+};

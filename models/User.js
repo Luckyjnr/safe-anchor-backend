@@ -9,9 +9,10 @@ const UserSchema = new mongoose.Schema({
   phone: String,
   isAnonymous: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false },
+  emailVerificationToken: String, // Added for email verification
   privacySettings: Object,
   resetPasswordToken: String,
-  resetPasswordCode: String, // Added for 6-digit code
+  resetPasswordCode: String, // 6-digit code for password reset
   resetPasswordExpires: Date,
   emergencyContacts: [Object],
   createdAt: { type: Date, default: Date.now },

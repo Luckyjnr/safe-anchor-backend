@@ -4,6 +4,7 @@ const multer = require('multer');
 const upload = multer(); // In-memory storage for S3 upload
 const {
   registerExpert,
+  verifyExpertEmail,
   loginExpert,
   logoutExpert,
   refreshTokenExpert,
@@ -18,6 +19,7 @@ const {
 } = require('../../controllers/expertController');
 
 router.post('/register', registerExpert);
+router.get('/verify-email', verifyExpertEmail); // Added for email verification
 router.post('/login', loginExpert);
 router.post('/logout', logoutExpert);
 router.post('/refresh-token', refreshTokenExpert);
@@ -54,8 +56,26 @@ module.exports = router;
  *               phone: { type: string }
  *               specialization: { type: array, items: { type: string } }
  *     responses:
- *       201: { description: Expert registered successfully }
+ *       201: { description: Expert registered successfully. Please check your email to verify your account. }
  *       400: { description: Bad request }
+ */
+
+/**
+ * @swagger
+ * /api/experts/verify-email:
+ *   get:
+ *     summary: Verify expert email with token
+ *     tags: [Expert]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Email verification token sent to expert's email
+ *     responses:
+ *       200: { description: Email verified successfully }
+ *       400: { description: Invalid or expired verification token }
  */
 
 /**
@@ -76,6 +96,7 @@ module.exports = router;
  *     responses:
  *       200: { description: Login successful }
  *       400: { description: Invalid credentials }
+ *       401: { description: Email not verified }
  */
 
 /**

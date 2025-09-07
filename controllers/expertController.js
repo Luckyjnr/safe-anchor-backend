@@ -14,7 +14,7 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION
 });
 
-// Register expert
+// Register expert with email verification
 const registerExpert = async (req, res) => {
   try {
     const { email, password, confirmPassword, firstName, lastName, phone, specialization } = req.body;
@@ -27,6 +27,9 @@ const registerExpert = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate email verification token
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+
     user = new User({
       email,
       password: hashedPassword,
@@ -34,37 +37,63 @@ const registerExpert = async (req, res) => {
       firstName,
       lastName,
       phone,
-      isVerified: false
+      isVerified: false,
+      emailVerificationToken
     });
     await user.save();
 
     await new Expert({ userId: user._id, specialization }).save();
 
-    const payload = { userId: user._id, userType: user.userType };
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-    const refreshTokenValue = crypto.randomBytes(40).toString('hex');
-    await new RefreshToken({
-      userId: user._id,
-      token: refreshTokenValue,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    }).save();
+    // Send verification email
+    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${emailVerificationToken}`;
+    await transporter.sendMail({
+      from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Verify Your Email (Expert)',
+      html: `
+        <p>Welcome to Safe Anchor as an expert!</p>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${verificationUrl}">${verificationUrl}</a>
+        <p>If you did not register, please ignore this email.</p>
+      `
+    });
 
     res.status(201).json({
-      accessToken,
-      refreshToken: refreshTokenValue,
-      user: payload
+      msg: 'Registration successful. Please check your email to verify your account.',
+      user: { userId: user._id, userType: user.userType }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
 };
 
-// Expert login
+// Expert email verification endpoint
+const verifyExpertEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+    const user = await User.findOne({ emailVerificationToken: token, userType: 'expert' });
+    if (!user) return res.status(400).json({ msg: 'Invalid or expired verification token' });
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    await user.save();
+
+    res.json({ msg: 'Email verified successfully. You can now log in as an expert.' });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Expert login (only if verified)
 const loginExpert = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email, userType: 'expert' });
     if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
+
+    if (!user.isVerified) {
+      return res.status(401).json({ msg: 'Please verify your email before logging in.' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
@@ -288,6 +317,7 @@ const getPublicExpertProfile = async (req, res) => {
 
 module.exports = {
   registerExpert,
+  verifyExpertEmail,
   loginExpert,
   logoutExpert,
   refreshTokenExpert,
