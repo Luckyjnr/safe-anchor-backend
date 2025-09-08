@@ -12,6 +12,9 @@ const sessionRoutes = require('./routes/api/sessions');
 const resourceRoutes = require('./routes/api/resources');
 const victimDashboardRoutes = require('./routes/api/victimDashboard');
 const expertDashboardRoutes = require('./routes/api/expertDashboard');
+const crisisHotlineRoutes = require('./routes/api/crisisHotlines');
+const supportGroupRoutes = require('./routes/api/supportGroup');
+
 
 const app = express();
 
@@ -33,5 +36,8 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/victim-dashboard', victimDashboardRoutes);
 app.use('/api/expert-dashboard', expertDashboardRoutes);
+app.use('/api/crisis-hotlines', crisisHotlineRoutes);
+app.use('/api/support-groups', supportGroupRoutes);
+
 
 module.exports = app;
