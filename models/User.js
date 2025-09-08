@@ -15,6 +15,11 @@ const UserSchema = new mongoose.Schema({
   resetPasswordCode: String, // 6-digit code for password reset
   resetPasswordExpires: Date,
   emergencyContacts: [Object],
+  gender: String,
+  dateOfBirth: Date,
+  bio: String,
+  experience: String,
+  languages: [String],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

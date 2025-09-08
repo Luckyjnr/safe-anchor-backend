@@ -13,7 +13,7 @@ const matchExpertForVictim = async (req, res) => {
     victim.expertPreferences = preferences;
     await victim.save();
 
-    res.json({ matchedExperts: experts });
+    res.json({ matches: experts });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -26,7 +26,7 @@ const getMatchedExperts = async (req, res) => {
     const victim = await Victim.findOne({ userId }).populate('matchedExperts');
     if (!victim) return res.status(404).json({ msg: 'Victim not found' });
 
-    res.json({ matchedExperts: victim.matchedExperts });
+    res.json({ experts: victim.matchedExperts });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -42,7 +42,7 @@ const updateExpertPreference = async (req, res) => {
     victim.expertPreferences = preferences;
     await victim.save();
 
-    res.json({ msg: 'Preferences updated' });
+    res.json({ msg: 'preferences updated' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -51,13 +51,13 @@ const updateExpertPreference = async (req, res) => {
 // POST /api/victims/anonymous-start
 const startAnonymousSupport = async (req, res) => {
   // You can generate a temporary anonymous user/session here
-  res.status(201).json({ msg: 'Anonymous support session started', sessionId: 'temp-session-id' });
+  res.status(201).json({ msg: 'anonymous support session started', sessionId: 'temp-session-id' });
 };
 
 // POST /api/victims/questionnaire
 const submitAnonymousQuestionnaire = async (req, res) => {
   // Save questionnaire data anonymously
-  res.status(201).json({ msg: 'Anonymous questionnaire submitted' });
+  res.status(201).json({ msg: 'anonymous questionnaire submitted' });
 };
 
 // GET /api/victims/anonymous-resources
@@ -76,7 +76,7 @@ const addEmergencyContact = async (req, res) => {
       { new: true }
     );
     if (!victim) return res.status(404).json({ msg: 'Victim not found' });
-    res.json({ msg: 'Emergency contact added', victim });
+    res.json({ msg: 'emergency contact added' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -88,7 +88,7 @@ const getExpertHistory = async (req, res) => {
     const { userId } = req.query;
     const victim = await Victim.findOne({ userId });
     if (!victim) return res.status(404).json({ msg: 'Victim not found' });
-    res.json({ sessionHistory: victim.sessionHistory || [] });
+    res.json({ history: victim.sessionHistory || [] });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }

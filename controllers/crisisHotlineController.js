@@ -19,7 +19,7 @@ const createHotline = async (req, res) => {
     }
     const hotline = new CrisisHotline({ name, phone, country, description });
     await hotline.save();
-    res.status(201).json({ msg: 'Hotline created', hotline });
+    res.status(201).json({ msg: 'hotline created', hotline });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -32,7 +32,7 @@ const updateHotline = async (req, res) => {
     const updates = req.body;
     const hotline = await CrisisHotline.findByIdAndUpdate(id, updates, { new: true });
     if (!hotline) return res.status(404).json({ msg: 'Hotline not found' });
-    res.json({ msg: 'Hotline updated', hotline });
+    res.json({ msg: 'hotline updated', hotline });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -44,7 +44,7 @@ const deleteHotline = async (req, res) => {
     const { id } = req.params;
     const hotline = await CrisisHotline.findByIdAndDelete(id);
     if (!hotline) return res.status(404).json({ msg: 'Hotline not found' });
-    res.json({ msg: 'Hotline deleted' });
+    res.json({ msg: 'hotline deleted' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }

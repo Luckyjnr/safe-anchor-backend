@@ -60,7 +60,13 @@ const registerExpert = async (req, res) => {
 
     res.status(201).json({
       msg: 'Registration successful. Please check your email to verify your account.',
-      user: { userId: user._id, userType: user.userType }
+      expert: { 
+        userId: user._id, 
+        userType: user.userType,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
@@ -108,9 +114,14 @@ const loginExpert = async (req, res) => {
     }).save();
 
     res.json({
-      accessToken,
+      token: accessToken,
       refreshToken: refreshTokenValue,
-      user: payload
+      expert: {
+        ...payload,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
@@ -122,7 +133,7 @@ const logoutExpert = async (req, res) => {
   try {
     const { refreshToken } = req.body;
     await RefreshToken.deleteOne({ token: refreshToken });
-    res.json({ msg: 'Logged out successfully' });
+    res.json({ msg: 'logged out successfully' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -150,7 +161,7 @@ const refreshTokenExpert = async (req, res) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     }).save();
 
-    res.json({ accessToken, refreshToken: newRefreshToken });
+    res.json({ token: accessToken, refreshToken: newRefreshToken });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -180,7 +191,7 @@ const forgotPasswordExpert = async (req, res) => {
       `
     });
 
-    res.json({ msg: 'Password reset code sent to your email' });
+    res.json({ msg: 'reset code sent' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -206,7 +217,7 @@ const resetPasswordExpert = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.json({ msg: 'Password reset successful' });
+    res.json({ msg: 'password reset successful' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -223,7 +234,7 @@ const kycVerification = async (req, res) => {
     expert.verificationStatus = 'pending';
     await expert.save();
 
-    res.json({ msg: 'KYC submitted, pending verification', expert });
+    res.json({ msg: 'KYC submitted' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -253,7 +264,7 @@ const uploadCredentials = async (req, res) => {
     );
     if (!expert) return res.status(404).json({ msg: 'Expert not found' });
 
-    res.json({ msg: 'Credential uploaded', url: uploadResult.Location, expert });
+    res.json({ msg: 'credential uploaded' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -270,7 +281,7 @@ const updateVerificationStatus = async (req, res) => {
     );
     if (!expert) return res.status(404).json({ msg: 'Expert not found' });
 
-    res.json({ msg: 'Verification status updated', expert });
+    res.json({ msg: 'verification status updated' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -296,7 +307,7 @@ const updateExpertProfile = async (req, res) => {
     const expert = await Expert.findOneAndUpdate({ userId }, updates, { new: true });
     if (!expert) return res.status(404).json({ msg: 'Expert not found' });
 
-    res.json({ msg: 'Profile updated', expert });
+    res.json({ msg: 'profile updated' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }

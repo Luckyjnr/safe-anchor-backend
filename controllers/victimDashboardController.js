@@ -19,10 +19,13 @@ const getVictimDashboard = async (req, res) => {
     const { password, ...safeUser } = req.user.toObject();
 
     res.json({
-      profile: safeUser,
-      matchedExperts: victim.matchedExperts,
-      sessions,
-      survivorStories: stories
+      dashboard: {
+        user: safeUser,
+        matchedExperts: victim.matchedExperts,
+        upcomingSessions: sessions.filter(s => s.status === 'pending' || s.status === 'confirmed'),
+        recentSessions: sessions.filter(s => s.status === 'completed').slice(0, 5),
+        survivorStories: stories
+      }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });

@@ -3,8 +3,15 @@ const SupportGroup = require('../models/SupportGroup');
 // Get all support groups
 const getSupportGroups = async (req, res) => {
   try {
-    const groups = await SupportGroup.find().populate('members', 'email firstName lastName');
-    res.json({ groups });
+    const { category } = req.query;
+    const query = { isActive: true };
+    
+    if (category) {
+      query.category = category;
+    }
+    
+    const groups = await SupportGroup.find(query).populate('members', 'email firstName lastName');
+    res.json({ supportGroups: groups });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -13,13 +20,18 @@ const getSupportGroups = async (req, res) => {
 // Create a support group
 const createSupportGroup = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, category } = req.body;
     if (!name) {
       return res.status(400).json({ msg: 'Group name is required.' });
     }
-    const group = new SupportGroup({ name, description });
+    const group = new SupportGroup({ 
+      name, 
+      description, 
+      category: category || 'general',
+      createdBy: req.user._id 
+    });
     await group.save();
-    res.status(201).json({ msg: 'Support group created', group });
+    res.status(201).json({ msg: 'support group created', supportGroup: group });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -32,7 +44,7 @@ const updateSupportGroup = async (req, res) => {
     const updates = req.body;
     const group = await SupportGroup.findByIdAndUpdate(id, updates, { new: true });
     if (!group) return res.status(404).json({ msg: 'Support group not found' });
-    res.json({ msg: 'Support group updated', group });
+    res.json({ msg: 'support group updated', supportGroup: group });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -44,7 +56,7 @@ const deleteSupportGroup = async (req, res) => {
     const { id } = req.params;
     const group = await SupportGroup.findByIdAndDelete(id);
     if (!group) return res.status(404).json({ msg: 'Support group not found' });
-    res.json({ msg: 'Support group deleted' });
+    res.json({ msg: 'support group deleted' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -62,7 +74,7 @@ const joinSupportGroup = async (req, res) => {
     }
     group.members.push(userId);
     await group.save();
-    res.json({ msg: 'Joined support group', group });
+    res.json({ msg: 'joined support group' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -77,7 +89,7 @@ const leaveSupportGroup = async (req, res) => {
     if (!group) return res.status(404).json({ msg: 'Support group not found' });
     group.members = group.members.filter(member => member.toString() !== userId);
     await group.save();
-    res.json({ msg: 'Left support group', group });
+    res.json({ msg: 'left support group' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }

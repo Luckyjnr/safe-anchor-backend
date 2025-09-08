@@ -102,11 +102,22 @@ safe-anchor-backend/
    npm install
    ```
 
-3. **Create `.env` File**
+3. **Set up Environment Variables**
+   ```bash
+   # Copy the example environment file
+   cp env.example .env
+   
+   # Edit .env with your actual values
+   nano .env  # or use your preferred editor
+   ```
+   
+   **Required Environment Variables:**
    ```env
+   NODE_ENV=development
    PORT=5000
-   MONGO_URI=your_mongodb_uri
-   JWT_SECRET=your_secret_key
+   MONGO_URI=mongodb://localhost:27017/safe-anchor
+   JWT_SECRET=your-super-secret-jwt-key-here
+   # ... see env.example for complete list
 
    # Email configuration
    EMAIL_HOST=your_email_host

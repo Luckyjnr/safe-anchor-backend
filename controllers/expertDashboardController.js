@@ -19,10 +19,17 @@ const getExpertDashboard = async (req, res) => {
     const { password, ...safeUser } = req.user.toObject();
 
     res.json({
-      profile: safeUser,
-      specialization: expert.specialization,
-      sessions,
-      articles
+      dashboard: {
+        expert: safeUser,
+        specialization: expert.specialization,
+        upcomingSessions: sessions.filter(s => s.status === 'pending' || s.status === 'confirmed'),
+        recentSessions: sessions.filter(s => s.status === 'completed').slice(0, 5),
+        stats: {
+          totalSessions: expert.totalSessions,
+          rating: expert.rating,
+          articles: articles.length
+        }
+      }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });

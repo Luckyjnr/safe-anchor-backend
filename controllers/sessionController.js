@@ -5,10 +5,21 @@ const bookSession = async (req, res) => {
   try {
     const { victimId, expertId, scheduledAt, notes } = req.body;
 
+    // Validate required fields
+    if (!victimId || !expertId || !scheduledAt) {
+      return res.status(400).json({ msg: 'Missing required fields' });
+    }
+
+    // Check if scheduled time is in the past
+    const scheduledTime = new Date(scheduledAt);
+    if (scheduledTime < new Date()) {
+      return res.status(400).json({ msg: 'Cannot schedule session in the past' });
+    }
+
     // Check for double booking (expert already has a session at this time)
     const conflict = await Session.findOne({
       expertId,
-      scheduledAt: new Date(scheduledAt),
+      scheduledAt: scheduledTime,
       status: { $in: ['pending', 'confirmed'] }
     });
 
@@ -19,7 +30,7 @@ const bookSession = async (req, res) => {
     // Optionally, check if victim already has a session at this time
     const victimConflict = await Session.findOne({
       victimId,
-      scheduledAt: new Date(scheduledAt),
+      scheduledAt: scheduledTime,
       status: { $in: ['pending', 'confirmed'] }
     });
 
@@ -27,9 +38,9 @@ const bookSession = async (req, res) => {
       return res.status(409).json({ msg: 'You already have a session at the selected time.' });
     }
 
-    const session = new Session({ victimId, expertId, scheduledAt, notes });
+    const session = new Session({ victimId, expertId, scheduledAt: scheduledTime, notes });
     await session.save();
-    res.status(201).json({ msg: 'Session booked', session });
+    res.status(201).json({ msg: 'session booked', session });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -54,7 +65,7 @@ const updateSession = async (req, res) => {
     const updates = req.body;
     const session = await Session.findByIdAndUpdate(id, updates, { new: true });
     if (!session) return res.status(404).json({ msg: 'Session not found' });
-    res.json({ msg: 'Session updated', session });
+    res.json({ msg: 'session updated', session });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -66,7 +77,7 @@ const deleteSession = async (req, res) => {
     const { id } = req.params;
     const session = await Session.findByIdAndDelete(id);
     if (!session) return res.status(404).json({ msg: 'Session not found' });
-    res.json({ msg: 'Session deleted' });
+    res.json({ msg: 'session deleted' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }

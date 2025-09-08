@@ -29,6 +29,16 @@ setupSwagger(app);
 
 // Routes
 app.get('/', (req, res) => res.send('Safe Anchor API Running'));
+
+// Health check route
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/experts', expertRoutes);
 app.use('/api/victims', victimRoutes);

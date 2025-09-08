@@ -64,7 +64,13 @@ const register = async (req, res) => {
 
     res.status(201).json({
       msg: 'Registration successful. Please check your email to verify your account.',
-      user: { userId: user._id, userType: user.userType }
+      user: { 
+        userId: user._id, 
+        userType: user.userType,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
@@ -114,9 +120,14 @@ const login = async (req, res) => {
     }).save();
 
     res.json({
-      accessToken,
+      token: accessToken,
       refreshToken: refreshTokenValue,
-      user: payload
+      user: {
+        ...payload,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
     });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
@@ -127,7 +138,7 @@ const logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
     await RefreshToken.deleteOne({ token: refreshToken });
-    res.json({ msg: 'Logged out successfully' });
+    res.json({ msg: 'logged out successfully' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -152,7 +163,7 @@ const refreshToken = async (req, res) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     }).save();
 
-    res.json({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+    res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -183,7 +194,7 @@ const forgotPassword = async (req, res) => {
       `
     });
 
-    res.json({ msg: 'Password reset code sent to your email' });
+    res.json({ msg: 'reset code sent' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -208,7 +219,7 @@ const resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.json({ msg: 'Password reset successful' });
+    res.json({ msg: 'password reset successful' });
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
   }
