@@ -1,13 +1,17 @@
 const Session = require('../models/Session');
+const mongoose = require('mongoose');
 
 // Book a session with availability check
 const bookSession = async (req, res) => {
   try {
-    const { victimId, expertId, scheduledAt, notes } = req.body;
+    const victimId = req.user._id; // Get from JWT token
+    const { expertId, scheduledAt, notes, duration } = req.body;
+
+    console.log('Book session - victimId:', victimId, 'expertId:', expertId, 'scheduledAt:', scheduledAt);
 
     // Validate required fields
-    if (!victimId || !expertId || !scheduledAt) {
-      return res.status(400).json({ msg: 'Missing required fields' });
+    if (!expertId || !scheduledAt) {
+      return res.status(400).json({ msg: 'Missing required fields: expertId and scheduledAt are required' });
     }
 
     // Check if scheduled time is in the past
@@ -46,15 +50,42 @@ const bookSession = async (req, res) => {
   }
 };
 
+// Get all sessions for a user
+const getSessions = async (req, res) => {
+  try {
+    const userId = req.user._id; // Get from JWT token
+    console.log('Get sessions - userId:', userId);
+    
+    const sessions = await Session.find({ victimId: userId })
+      .populate('expertId', 'specialization')
+      .sort({ scheduledAt: -1 });
+    
+    res.json({ sessions });
+  } catch (err) {
+    console.error('Get sessions error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+};
+
 // Get session details
 const getSession = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('Get session - id:', id);
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: 'Invalid session ID format' });
+    }
+    
     const session = await Session.findById(id).populate('victimId expertId');
+    console.log('Get session - found:', session ? 'Yes' : 'No');
+    
     if (!session) return res.status(404).json({ msg: 'Session not found' });
     res.json({ session });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Get session error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -63,11 +94,21 @@ const updateSession = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+    console.log('Update session - id:', id, 'updates:', updates);
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: 'Invalid session ID format' });
+    }
+    
     const session = await Session.findByIdAndUpdate(id, updates, { new: true });
+    console.log('Update session - found:', session ? 'Yes' : 'No');
+    
     if (!session) return res.status(404).json({ msg: 'Session not found' });
     res.json({ msg: 'session updated', session });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Update session error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -75,12 +116,22 @@ const updateSession = async (req, res) => {
 const deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('Delete session - id:', id);
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: 'Invalid session ID format' });
+    }
+    
     const session = await Session.findByIdAndDelete(id);
+    console.log('Delete session - found:', session ? 'Yes' : 'No');
+    
     if (!session) return res.status(404).json({ msg: 'Session not found' });
     res.json({ msg: 'session deleted' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Delete session error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
-module.exports = { bookSession, getSession, updateSession, deleteSession };
+module.exports = { bookSession, getSessions, getSession, updateSession, deleteSession };

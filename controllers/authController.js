@@ -137,10 +137,17 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    await RefreshToken.deleteOne({ token: refreshToken });
-    res.json({ msg: 'logged out successfully' });
+    
+    console.log('Logout request:', { refreshToken: refreshToken ? 'provided' : 'missing' });
+    
+    if (refreshToken) {
+      await RefreshToken.deleteOne({ token: refreshToken });
+    }
+    
+    res.json({ msg: 'Logged out successfully' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Logout error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -203,25 +210,37 @@ const forgotPassword = async (req, res) => {
 // Reset password with 6-digit code
 const resetPassword = async (req, res) => {
   try {
-    const { resetCode, password, confirmPassword } = req.body;
-    if (password !== confirmPassword) {
+    const { email, resetCode, password, newPassword, confirmPassword } = req.body;
+    
+    // Use newPassword if provided, otherwise use password
+    const actualPassword = newPassword || password;
+    
+    console.log('Reset password request:', { email, resetCode, password: actualPassword ? 'provided' : 'missing', confirmPassword: confirmPassword ? 'provided' : 'missing' });
+    
+    if (actualPassword !== confirmPassword) {
       return res.status(400).json({ msg: 'Passwords do not match' });
     }
+
     const user = await User.findOne({
+      email,
       resetPasswordCode: resetCode,
       resetPasswordExpires: { $gt: Date.now() }
     });
+    
+    console.log('User found:', user ? 'Yes' : 'No');
+    
     if (!user) return res.status(400).json({ msg: 'Invalid or expired code' });
 
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    user.password = await bcrypt.hash(actualPassword, salt);
     user.resetPasswordCode = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.json({ msg: 'password reset successful' });
+    res.json({ msg: 'Password reset successful' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Reset password error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 

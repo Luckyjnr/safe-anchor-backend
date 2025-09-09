@@ -24,7 +24,7 @@ module.exports = router;
  * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Register a new victim user
+ *     summary: Register a new user (victim or expert)
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -32,24 +32,53 @@ module.exports = router;
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - confirmPassword
+ *               - firstName
+ *               - lastName
+ *               - userType
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: User's email address
  *               password:
  *                 type: string
+ *                 minLength: 6
+ *                 description: User's password
  *               confirmPassword:
  *                 type: string
+ *                 description: Password confirmation
  *               firstName:
  *                 type: string
+ *                 description: User's first name
  *               lastName:
  *                 type: string
+ *                 description: User's last name
  *               phone:
  *                 type: string
+ *                 description: User's phone number
+ *               userType:
+ *                 type: string
+ *                 enum: [victim, expert]
+ *                 description: Type of user account
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: User registered successfully. Please check your email to verify your account.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "Registration successful. Please check your email to verify your account."
  *       400:
- *         description: Bad request
+ *         description: Bad request - validation error
+ *       409:
+ *         description: User already exists
  */
 
 /**
@@ -174,16 +203,43 @@ module.exports = router;
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - resetCode
+ *               - password
+ *               - confirmPassword
  *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
  *               resetCode:
  *                 type: string
+ *                 description: 6-digit reset code sent to email
  *               password:
  *                 type: string
+ *                 minLength: 6
+ *                 description: New password
  *               confirmPassword:
  *                 type: string
+ *                 description: Password confirmation
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: Alternative field for new password (can be used instead of password)
  *     responses:
  *       200:
  *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "Password reset successfully"
  *       400:
- *         description: Invalid or expired code
+ *         description: Invalid or expired code, or passwords do not match
+ *       404:
+ *         description: User not found
  */

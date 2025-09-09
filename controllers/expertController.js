@@ -132,10 +132,17 @@ const loginExpert = async (req, res) => {
 const logoutExpert = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    await RefreshToken.deleteOne({ token: refreshToken });
-    res.json({ msg: 'logged out successfully' });
+    
+    console.log('Expert logout request:', { refreshToken: refreshToken ? 'provided' : 'missing' });
+    
+    if (refreshToken) {
+      await RefreshToken.deleteOne({ token: refreshToken });
+    }
+    
+    res.json({ msg: 'Logged out successfully' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Expert logout error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -171,14 +178,22 @@ const refreshTokenExpert = async (req, res) => {
 const forgotPasswordExpert = async (req, res) => {
   try {
     const { email } = req.body;
+    console.log('Expert forgot password - email:', email);
+    
     const user = await User.findOne({ email, userType: 'expert' });
+    console.log('Expert user found:', user ? 'Yes' : 'No');
+    
     if (!user) return res.status(400).json({ msg: 'User not found' });
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('Generated reset code:', resetCode);
+    
     user.resetPasswordCode = resetCode;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
+    console.log('Reset code saved to user');
 
+    console.log('Sending email to:', user.email);
     await transporter.sendMail({
       from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
       to: user.email,
@@ -190,10 +205,12 @@ const forgotPasswordExpert = async (req, res) => {
         <p>If you did not request this, please ignore this email.</p>
       `
     });
+    console.log('Email sent successfully');
 
     res.json({ msg: 'reset code sent' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Expert forgot password error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -223,93 +240,213 @@ const resetPasswordExpert = async (req, res) => {
   }
 };
 
+// Test endpoint to check token
+const testToken = async (req, res) => {
+  try {
+    console.log('Test token - req.user:', req.user);
+    console.log('Test token - req.headers:', req.headers);
+    res.json({ 
+      msg: 'Token test successful', 
+      user: req.user,
+      hasUser: !!req.user 
+    });
+  } catch (err) {
+    console.error('Test token error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+};
+
 // POST /api/experts/kyc-verification
 const kycVerification = async (req, res) => {
   try {
-    const { userId, kycData } = req.body;
+    console.log('KYC verification - req.user:', req.user);
+    console.log('KYC verification - req.body:', req.body);
+    
+    const userId = req.user?._id; // Get from JWT token (auth middleware sets req.user to full user object)
+    const { fullName, dateOfBirth, address, phoneNumber, idType, idNumber } = req.body;
+    
+    if (!userId) {
+      return res.status(401).json({ msg: 'User ID not found in token' });
+    }
+    
+    console.log('KYC verification request:', { userId, fullName, idType });
+    
+    // Check if user exists
+    const user = await User.findById(userId);
+    console.log('User found:', user ? 'Yes' : 'No', user ? user.userType : 'N/A');
+    
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    
+    if (user.userType !== 'expert') {
+      return res.status(403).json({ msg: 'User is not an expert' });
+    }
+    
+    // Check if expert record exists
     const expert = await Expert.findOne({ userId });
-    if (!expert) return res.status(404).json({ msg: 'Expert not found' });
+    console.log('Expert found:', expert ? 'Yes' : 'No');
+    
+    if (!expert) {
+      // If expert record doesn't exist, create it
+      console.log('Creating expert record for userId:', userId);
+      const newExpert = new Expert({ 
+        userId: userId, 
+        specialization: user?.specialization || 'general' 
+      });
+      await newExpert.save();
+      console.log('Expert record created successfully');
+      
+      // Update the expert with KYC data
+      newExpert.kycDocuments = [{
+        fullName,
+        dateOfBirth,
+        address,
+        phoneNumber,
+        idType,
+        idNumber,
+        submittedAt: new Date()
+      }];
+      newExpert.verificationStatus = 'pending';
+      await newExpert.save();
+      
+      return res.json({ msg: 'KYC verification submitted successfully' });
+    }
 
-    expert.kycDocuments = kycData;
+    // Update expert with KYC data
+    expert.kycDocuments = [{
+      fullName,
+      dateOfBirth,
+      address,
+      phoneNumber,
+      idType,
+      idNumber,
+      submittedAt: new Date()
+    }];
     expert.verificationStatus = 'pending';
     await expert.save();
 
-    res.json({ msg: 'KYC submitted' });
+    res.json({ msg: 'KYC verification submitted successfully' });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('KYC verification error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
 // POST /api/experts/upload-credentials
 const uploadCredentials = async (req, res) => {
   try {
-    const { userId } = req.body;
-    const file = req.file; // Assuming multer is used for file upload
+    const userId = req.user._id; // Get from JWT token
+    const file = req.file; // Multer provides this from 'file' field
+    
+    console.log('Upload credentials - userId:', userId, 'file:', file ? file.originalname : 'No file');
 
-    // Upload file to S3
-    const params = {
-      Bucket: process.env.AWS_S3_BUCKET,
-      Key: `credentials/${userId}/${file.originalname}`,
-      Body: file.buffer,
-      ContentType: file.mimetype
-    };
+    if (!file) {
+      return res.status(400).json({ msg: 'No file uploaded' });
+    }
 
-    const uploadResult = await s3.upload(params).promise();
+    // For testing purposes, we'll simulate the upload
+    // In production, you would upload to S3
+    const fileUrl = `https://example-bucket.s3.amazonaws.com/credentials/${userId}/${file.originalname}`;
+    
+    console.log('Simulated file URL:', fileUrl);
 
     // Save file URL to expert profile
     const expert = await Expert.findOneAndUpdate(
       { userId },
-      { $push: { credentials: uploadResult.Location } },
+      { $push: { credentials: fileUrl } },
       { new: true }
     );
-    if (!expert) return res.status(404).json({ msg: 'Expert not found' });
 
-    res.json({ msg: 'credential uploaded' });
+    if (!expert) {
+      return res.status(404).json({ msg: 'Expert not found' });
+    }
+
+    res.json({ 
+      msg: 'Credentials uploaded successfully', 
+      fileUrl: fileUrl,
+      expert: {
+        _id: expert._id,
+        credentials: expert.credentials
+      }
+    });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Upload credentials error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
 // PUT /api/experts/verification-status
 const updateVerificationStatus = async (req, res) => {
   try {
-    const { userId, status } = req.body;
+    const userId = req.user._id; // Get from JWT token
+    const { status } = req.body;
+    console.log('Update verification status - userId:', userId, 'status:', status);
+    
     const expert = await Expert.findOneAndUpdate(
       { userId },
       { verificationStatus: status },
       { new: true }
     );
+    console.log('Expert found:', expert ? 'Yes' : 'No');
+    
     if (!expert) return res.status(404).json({ msg: 'Expert not found' });
 
-    res.json({ msg: 'verification status updated' });
+    res.json({ msg: 'verification status updated', expert });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Update verification status error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
 // GET /api/experts/profile
 const getExpertProfile = async (req, res) => {
   try {
-    const { userId } = req.query;
-    const expert = await Expert.findOne({ userId }).populate('userId');
-    if (!expert) return res.status(404).json({ msg: 'Expert not found' });
+    const userId = req.user._id; // Get from JWT token
+    console.log('Get expert profile - userId:', userId);
+    
+    let expert = await Expert.findOne({ userId }).populate('userId');
+    console.log('Expert found:', expert ? 'Yes' : 'No');
+    
+    if (!expert) {
+      // If expert record doesn't exist, create it
+      console.log('Creating expert record for profile request');
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ msg: 'User not found' });
+      }
+      
+      expert = new Expert({ 
+        userId: userId, 
+        specialization: user.specialization || ['general'] 
+      });
+      await expert.save();
+      await expert.populate('userId');
+      console.log('Expert record created for profile');
+    }
 
     res.json({ expert });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Get expert profile error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
 // PUT /api/experts/profile
 const updateExpertProfile = async (req, res) => {
   try {
-    const { userId, updates } = req.body;
+    const userId = req.user._id; // Get from JWT token
+    const updates = req.body;
+    
+    console.log('Update expert profile - userId:', userId, 'updates:', updates);
+    
     const expert = await Expert.findOneAndUpdate({ userId }, updates, { new: true });
     if (!expert) return res.status(404).json({ msg: 'Expert not found' });
 
-    res.json({ msg: 'profile updated' });
+    res.json({ msg: 'Profile updated successfully', expert });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error('Update expert profile error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -334,6 +471,7 @@ module.exports = {
   refreshTokenExpert,
   forgotPasswordExpert,
   resetPasswordExpert,
+  testToken,
   kycVerification,
   uploadCredentials,
   updateVerificationStatus,

@@ -32,7 +32,39 @@ module.exports = router;
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of crisis hotlines
+ *         description: List of crisis hotlines retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 hotlines:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: Hotline ID
+ *                       name:
+ *                         type: string
+ *                         description: Hotline name
+ *                       phone:
+ *                         type: string
+ *                         description: Phone number
+ *                       country:
+ *                         type: string
+ *                         description: Country
+ *                       description:
+ *                         type: string
+ *                         description: Hotline description
+ *                       isActive:
+ *                         type: boolean
+ *                         description: Whether hotline is active
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *       500:
+ *         description: Server error
  *
  *   post:
  *     summary: Create a new crisis hotline
@@ -45,17 +77,46 @@ module.exports = router;
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - phone
  *             properties:
- *               name: { type: string }
- *               phone: { type: string }
- *               country: { type: string }
- *               description: { type: string }
+ *               name:
+ *                 type: string
+ *                 description: Hotline name
+ *               phone:
+ *                 type: string
+ *                 description: Phone number
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *               description:
+ *                 type: string
+ *                 description: Hotline description
  *     responses:
  *       201:
- *         description: Crisis hotline created
+ *         description: Crisis hotline created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "hotline created"
+ *                 hotline:
+ *                   type: object
+ *                   description: Created hotline details
  *       400:
- *         description: Bad request
- *
+ *         description: Name and phone are required
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
  * /api/crisis-hotlines/{id}:
  *   put:
  *     summary: Update a crisis hotline
@@ -65,19 +126,52 @@ module.exports = router;
  *     parameters:
  *       - in: path
  *         name: id
- *         schema: { type: string }
+ *         schema: 
+ *           type: string
  *         required: true
+ *         description: Hotline ID (must be valid MongoDB ObjectId)
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Updated hotline name
+ *               phone:
+ *                 type: string
+ *                 description: Updated phone number
+ *               country:
+ *                 type: string
+ *                 description: Updated country
+ *               description:
+ *                 type: string
+ *                 description: Updated description
+ *               isActive:
+ *                 type: boolean
+ *                 description: Whether hotline is active
  *     responses:
  *       200:
- *         description: Crisis hotline updated
+ *         description: Crisis hotline updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "hotline updated"
+ *                 hotline:
+ *                   type: object
+ *                   description: Updated hotline details
+ *       401:
+ *         description: Unauthorized - invalid or missing token
  *       404:
  *         description: Crisis hotline not found
+ *       500:
+ *         description: Server error
  *
  *   delete:
  *     summary: Delete a crisis hotline
@@ -87,11 +181,25 @@ module.exports = router;
  *     parameters:
  *       - in: path
  *         name: id
- *         schema: { type: string }
+ *         schema: 
+ *           type: string
  *         required: true
+ *         description: Hotline ID (must be valid MongoDB ObjectId)
  *     responses:
  *       200:
- *         description: Crisis hotline deleted
+ *         description: Crisis hotline deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "hotline deleted"
+ *       401:
+ *         description: Unauthorized - invalid or missing token
  *       404:
  *         description: Crisis hotline not found
+ *       500:
+ *         description: Server error
  */

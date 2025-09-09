@@ -5,7 +5,15 @@ const ExpertSchema = new mongoose.Schema({
   specialization: [String],
   credentials: [String],
   verificationStatus: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
-  kycDocuments: [String],
+  kycDocuments: [{
+    fullName: String,
+    dateOfBirth: String,
+    address: String,
+    phoneNumber: String,
+    idType: String,
+    idNumber: String,
+    submittedAt: { type: Date, default: Date.now }
+  }],
   availability: Object,
   sessionHistory: [Object],
   rating: { type: Number, default: 0 },
