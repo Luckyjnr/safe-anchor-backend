@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const upload = multer(); // In-memory storage for S3 upload
 const authenticate = require('../../middleware/auth');
+const { uploadLimiter } = require('../../middleware/security');
 const {
   registerExpert,
   verifyExpertEmail,
@@ -32,7 +33,7 @@ router.post('/reset-password', resetPasswordExpert);
 router.get('/test-token', authenticate, testToken);
 
 router.post('/kyc-verification', authenticate, kycVerification);
-router.post('/upload-credentials', authenticate, upload.single('file'), uploadCredentials);
+router.post('/upload-credentials', uploadLimiter, authenticate, upload.single('file'), uploadCredentials);
 router.put('/verification-status', authenticate, updateVerificationStatus);
 router.get('/profile', authenticate, getExpertProfile);
 router.put('/profile', authenticate, updateExpertProfile);

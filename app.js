@@ -1,9 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 const setupSwagger = require('./swagger'); // Only once!
+
+// Security middleware
+const { generalLimiter, authLimiter, helmetConfig } = require('./middleware/security');
 
 const authRoutes = require('./routes/api/auth');
 const expertRoutes = require('./routes/api/experts');
@@ -18,8 +21,13 @@ const supportGroupRoutes = require('./routes/api/supportGroup');
 
 const app = express();
 
-// Middleware
-app.use(express.json());
+// Basic security middleware
+app.use(helmetConfig);
+app.use(compression());
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS configuration
 const corsOptions = {
@@ -46,8 +54,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(helmet());
-app.use(morgan('dev'));
+app.use(morgan('combined'));
+app.use(generalLimiter); // Basic rate limiting
 
 // Swagger docs
 setupSwagger(app);
@@ -64,7 +72,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.use('/api/auth', authRoutes);
+// Apply specific rate limiting to sensitive routes
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/experts', expertRoutes);
 app.use('/api/victims', victimRoutes);
 app.use('/api/sessions', sessionRoutes);

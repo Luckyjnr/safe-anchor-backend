@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { passwordResetLimiter } = require('../../middleware/security');
 const {
   register,
   verifyEmail,
@@ -15,8 +16,8 @@ router.get('/verify-email', verifyEmail); // <-- Added for email verification
 router.post('/login', login);
 router.post('/logout', logout);
 router.post('/refresh-token', refreshToken);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/forgot-password', passwordResetLimiter, forgotPassword);
+router.post('/reset-password', passwordResetLimiter, resetPassword);
 
 module.exports = router;
 
