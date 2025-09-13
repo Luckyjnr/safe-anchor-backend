@@ -38,7 +38,7 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000', // Local development
       'http://localhost:3001',
-      'https://your-frontend-domain.com', // Replace with your actual frontend domain
+      'https://safe-anchor-web-page.vercel.app', // Production Vercel frontend
       process.env.FRONTEND_URL
     ].filter(Boolean);
     

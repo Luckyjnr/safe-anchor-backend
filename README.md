@@ -40,8 +40,9 @@ Safe Anchor is a secure, privacy-focused backend platform connecting abuse victi
   - Support group management
 
 - **Notification System**
-  - Email (SendGrid/AWS SES), SMS (Twilio), Push (Firebase)
+  - Email (Gmail SMTP), SMS (Twilio), Push (Firebase)
   - Session reminders, crisis alerts
+  - Email verification for user registration
 
 - **Admin Dashboard**
   - User & expert management
@@ -64,7 +65,7 @@ Safe Anchor is a secure, privacy-focused backend platform connecting abuse victi
 - **Cache/Queue:** Redis
 - **Auth:** JWT + Refresh Tokens
 - **File Storage:** AWS S3 (KYC & credentials)
-- **Notifications:** Email (SendGrid/AWS SES), SMS (Twilio), Push (Firebase)
+- **Notifications:** Email (Gmail SMTP), SMS (Twilio), Push (Firebase)
 - **Real-time:** WebSocket (Socket.io), Video Calls (Twilio/Agora)
 - **Testing:** Jest, Supertest, Postman
 
@@ -115,23 +116,29 @@ safe-anchor-backend/
    ```env
    NODE_ENV=development
    PORT=5000
-   MONGO_URI=mongodb://localhost:27017/safe-anchor
+   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/safe-anchor?retryWrites=true&w=majority
    JWT_SECRET=your-super-secret-jwt-key-here
-   # ... see env.example for complete list
-
-   # Email configuration
-   EMAIL_HOST=your_email_host
-   EMAIL_PORT=your_email_port
-   EMAIL_USER=your_email_user
-   EMAIL_PASS=your_email_pass
+   JWT_REFRESH_SECRET=your-super-secret-refresh-key-here
+   
+   # Gmail Configuration
+   GMAIL_USER=your-gmail@gmail.com
+   GMAIL_APP_PASSWORD=your-16-character-app-password
+   GMAIL_FROM_EMAIL=your-gmail@gmail.com
+   
+   # Frontend URL (for CORS and email redirects)
+   FRONTEND_URL=http://localhost:3000
+   # Production Frontend URL
+   # FRONTEND_URL=https://safe-anchor-web-page.vercel.app
+   
+   # Email Verification & Password Reset
+   EMAIL_VERIFICATION_SECRET=your-email-verification-secret
+   PASSWORD_RESET_SECRET=your-password-reset-secret
 
    # AWS S3 configuration
    AWS_ACCESS_KEY_ID=your_access_key_id
    AWS_SECRET_ACCESS_KEY=your_secret_access_key
    AWS_REGION=your_aws_region
    AWS_S3_BUCKET=your_s3_bucket_name
-
-   
    ```
 
 4. **Run the Server**
@@ -158,15 +165,67 @@ npm test
 - **Swagger UI:**  
   Visit [`/api-docs`](http://localhost:5000/api-docs) after starting the server for interactive API docs.
 
+## 🌐 Frontend Integration
+
+- **Frontend URL:** https://safe-anchor-web-page.vercel.app
+- **CORS Configuration:** Backend is configured to accept requests from the Vercel frontend
+- **Email Verification Links:** Redirect to the Vercel frontend for user verification
+- **Password Reset Links:** Redirect to the Vercel frontend for password reset
+
+### CORS Security Configuration
+
+The backend is configured with strict CORS policies for security:
+
+```javascript
+const allowedOrigins = [
+  'http://localhost:3000', // Local development
+  'http://localhost:3001', // Alternative local port
+  'https://safe-anchor-web-page.vercel.app', // Production Vercel frontend
+  process.env.FRONTEND_URL // Environment variable override
+];
+```
+
+**Security Features:**
+- ✅ **Whitelist-based CORS** - Only specific domains are allowed
+- ✅ **Environment variable support** - Flexible configuration via FRONTEND_URL
+- ✅ **Development support** - Local development URLs included
+- ✅ **Production ready** - Vercel frontend URL explicitly allowed
+- ✅ **Credentials support** - Cookies and authorization headers allowed
+- ✅ **Method restrictions** - Only necessary HTTP methods allowed
+
 ---
 
 ## 🔒 Security & Privacy
 
-- End-to-end encryption for sensitive communications
-- Data anonymization for anonymous users
-- GDPR-compliant privacy features
-- Audit logging & monitoring
-- Rate limiting & DDoS protection
+### CORS Security
+- **Whitelist-based CORS** - Only approved domains can access the API
+- **Vercel Frontend Integration** - https://safe-anchor-web-page.vercel.app explicitly allowed
+- **Environment Variable Support** - Flexible configuration via FRONTEND_URL
+- **Credentials Support** - Secure cookie and authorization header handling
+
+### Authentication & Authorization
+- **JWT Tokens** - Secure user authentication with refresh token mechanism
+- **Email Verification** - Required for all user registrations
+- **Password Security** - bcrypt hashing with salt rounds
+- **Role-based Access** - Victim, Expert, and Admin roles
+
+### API Security
+- **Rate Limiting** - Prevents abuse and DDoS attacks
+- **Input Validation** - All inputs are validated and sanitized
+- **Security Headers** - Helmet.js for comprehensive security headers
+- **Request Size Limits** - Prevents large payload attacks
+
+### Data Protection
+- **MongoDB Atlas** - Cloud-hosted database with encryption at rest
+- **Environment Variables** - Sensitive data stored securely
+- **CORS Protection** - Prevents unauthorized cross-origin requests
+- **Audit Logging** - Comprehensive request and error logging
+
+### Privacy Features
+- **Anonymous Access** - Victims can use the system anonymously
+- **Data Anonymization** - Personal data is protected
+- **GDPR Compliance** - Privacy-focused design
+- **Secure Email** - Gmail SMTP with app password authentication
 
 ---
 
@@ -174,6 +233,7 @@ npm test
 
 - [x] Project setup & architecture
 - [x] Authentication & user management
+- [x] Email verification system (Gmail SMTP)
 - [x] Victim support system
 - [x] Expert management (KYC, credential upload, profile)
 - [x] Session booking & communication
@@ -181,17 +241,21 @@ npm test
 - [x] Admin dashboard & analytics
 - [x] AWS S3 integration for file uploads
 - [x] Swagger API documentation
-- [ ] Support group & crisis hotline endpoints
-- [ ] Notification system (push/email/SMS)
-- [ ] Deployment & scaling
+- [x] Support group & crisis hotline endpoints
+- [x] Email notification system (Gmail SMTP)
+- [x] MongoDB Atlas cloud database integration
+- [x] Production-ready deployment configuration
+- [ ] SMS notifications (Twilio)
+- [ ] Push notifications (Firebase)
 
 ---
 
 ## 🛠️ Third-party Integrations
 
+- **MongoDB Atlas:** Cloud database hosting
 - **AWS S3:** Credential & document storage
+- **Gmail SMTP:** Email notifications and verification
 - **Twilio/Agora:** Video calls & SMS
-- **SendGrid/AWS SES:** Email notifications
 - **Firebase:** Push notifications
 
 ---

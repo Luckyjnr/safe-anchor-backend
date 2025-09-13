@@ -57,15 +57,19 @@ Create a `.env` file with the following variables:
 ```env
 NODE_ENV=production
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/safe-anchor
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/safe-anchor?retryWrites=true&w=majority
 JWT_SECRET=your-super-secret-jwt-key
+JWT_REFRESH_SECRET=your-super-secret-refresh-key
 AWS_ACCESS_KEY_ID=your-aws-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret
 AWS_REGION=your-aws-region
 AWS_S3_BUCKET=your-s3-bucket
-EMAIL_USER=your-email
-EMAIL_PASS=your-email-password
+GMAIL_USER=your-gmail@gmail.com
+GMAIL_APP_PASSWORD=your-16-character-app-password
+GMAIL_FROM_EMAIL=your-gmail@gmail.com
 FRONTEND_URL=https://your-frontend-domain.com
+EMAIL_VERIFICATION_SECRET=your-email-verification-secret
+PASSWORD_RESET_SECRET=your-password-reset-secret
 ```
 
 ## 📊 Test Coverage
