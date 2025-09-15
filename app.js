@@ -29,17 +29,25 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CORS configuration
+// CORS configuration - TEMPORARY for frontend team testing
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      'http://localhost:3000', // Local development
-      'http://localhost:3001',
+      'http://localhost:3000', // Your production frontend
+      'http://localhost:3001', // Alternative local port
       'https://safe-anchor-web-page.vercel.app', // Production Vercel frontend
-      process.env.FRONTEND_URL
+      process.env.FRONTEND_URL,
+      // TEMPORARY: Frontend team development URLs
+      'http://127.0.0.1:5502', // Frontend team's local server
+      'http://localhost:5502', // Alternative localhost format
+      'http://127.0.0.1:3000', // Common local development
+      'http://127.0.0.1:5500', // Another common local port
+      'http://localhost:5500', // Alternative localhost format
+      'http://127.0.0.1:8080', // Another common local port
+      'http://localhost:8080'  // Alternative localhost format
     ].filter(Boolean);
     
     if (allowedOrigins.includes(origin)) {
