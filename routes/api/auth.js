@@ -4,6 +4,7 @@ const { passwordResetLimiter } = require('../../middleware/security');
 const {
   register,
   verifyEmail,
+  resendOTP,
   login,
   logout,
   refreshToken,
@@ -12,7 +13,8 @@ const {
 } = require('../../controllers/authController');
 
 router.post('/register', register);
-router.get('/verify-email', verifyEmail); // <-- Added for email verification
+router.post('/verify-email', verifyEmail); // Changed to POST for OTP verification
+router.post('/resend-otp', passwordResetLimiter, resendOTP); // Added resend OTP route
 router.post('/login', login);
 router.post('/logout', logout);
 router.post('/refresh-token', refreshToken);
@@ -85,21 +87,107 @@ module.exports = router;
 /**
  * @swagger
  * /api/auth/verify-email:
- *   get:
- *     summary: Verify user email with token
+ *   post:
+ *     summary: Verify user email with OTP code (OTP only, no email required)
  *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: token
- *         schema:
- *           type: string
- *         required: true
- *         description: Email verification token sent to user's email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - otp
+ *             properties:
+ *               otp:
+ *                 type: string
+ *                 pattern: '^[0-9]{6}$'
+ *                 description: 6-digit verification code sent to user's email
+ *                 example: "123456"
  *     responses:
  *       200:
  *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "Email verified successfully. You can now log in."
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     userType:
+ *                       type: string
+ *                     isVerified:
+ *                       type: boolean
  *       400:
- *         description: Invalid or expired verification token
+ *         description: Invalid OTP, expired OTP, or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   examples:
+ *                     invalid_otp: "Invalid OTP. Please check your code and try again."
+ *                     expired_otp: "OTP has expired. Please request a new verification code."
+ *                     user_not_found: "User not found"
+ *                     already_verified: "Email is already verified"
+ */
+
+/**
+ * @swagger
+ * /api/auth/resend-otp:
+ *   post:
+ *     summary: Resend OTP verification code
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: New verification code sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "New verification code sent to your email. Please check your inbox."
+ *                 expiresIn:
+ *                   type: string
+ *                   example: "10 minutes"
+ *       400:
+ *         description: User not found or email already verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   examples:
+ *                     user_not_found: "User not found"
+ *                     already_verified: "Email is already verified"
  */
 
 /**

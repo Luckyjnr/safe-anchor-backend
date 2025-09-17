@@ -17,6 +17,7 @@ const victimDashboardRoutes = require('./routes/api/victimDashboard');
 const expertDashboardRoutes = require('./routes/api/expertDashboard');
 const crisisHotlineRoutes = require('./routes/api/crisisHotlines');
 const supportGroupRoutes = require('./routes/api/supportGroup');
+const testRoutes = require('./routes/api/test');
 
 
 const app = express();
@@ -90,6 +91,7 @@ app.use('/api/victim-dashboard', victimDashboardRoutes);
 app.use('/api/expert-dashboard', expertDashboardRoutes);
 app.use('/api/crisis-hotlines', crisisHotlineRoutes);
 app.use('/api/support-groups', supportGroupRoutes);
+app.use('/api/test', testRoutes);
 
 
 module.exports = app;

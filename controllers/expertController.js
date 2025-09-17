@@ -6,6 +6,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const transporter = require('../config/email');
 const AWS = require('aws-sdk');
+const { generateOTP } = require('../utils/otpGenerator');
+const { generateOTPEmailTemplate } = require('../utils/emailTemplates');
+const { storeOTP } = require('../utils/otpStorage');
 
 // AWS S3 setup (make sure to set credentials in environment variables)
 const s3 = new AWS.S3({
@@ -27,8 +30,8 @@ const registerExpert = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate email verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+    // Generate OTP for email verification (not stored in database)
+    const emailVerificationOTP = generateOTP();
 
     user = new User({
       email,
@@ -37,25 +40,28 @@ const registerExpert = async (req, res) => {
       firstName,
       lastName,
       phone,
-      isVerified: false,
-      emailVerificationToken
+      isVerified: false
+      // OTP is NOT stored in database - only sent via email
     });
     await user.save();
 
     await new Expert({ userId: user._id, specialization }).save();
 
-    // Send verification email
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${emailVerificationToken}`;
+    // Store OTP in memory (not database)
+    storeOTP(user.email, emailVerificationOTP, 'expert', firstName || 'Expert');
+
+    // Send OTP verification email
+    const emailTemplate = generateOTPEmailTemplate(
+      emailVerificationOTP, 
+      firstName || 'Expert', 
+      'expert'
+    );
+    
     await transporter.sendMail({
-      from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
+      from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: 'Verify Your Email (Expert)',
-      html: `
-        <p>Welcome to Safe Anchor as an expert!</p>
-        <p>Please verify your email address by clicking the link below:</p>
-        <a href="${verificationUrl}">${verificationUrl}</a>
-        <p>If you did not register, please ignore this email.</p>
-      `
+      subject: '🔐 Verify Your Email - Safe Anchor Expert',
+      html: emailTemplate
     });
 
     res.status(201).json({
