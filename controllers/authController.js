@@ -20,14 +20,21 @@ const generateTokens = (user) => {
 // Victim registration with email verification
 const register = async (req, res) => {
   try {
-    const { email, password, confirmPassword, firstName, lastName, phone } = req.body;
+    const { email, username, password, confirmPassword, firstName, lastName, phone } = req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({ msg: 'Passwords do not match' });
     }
 
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: 'User already exists' });
+    // Check if email or username already exists
+    let user = await User.findOne({ $or: [{ email }, { username }] });
+    if (user) {
+      if (user.email === email) {
+        return res.status(400).json({ msg: 'Email already exists' });
+      } else {
+        return res.status(400).json({ msg: 'Username already exists' });
+      }
+    }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -37,6 +44,7 @@ const register = async (req, res) => {
 
     user = new User({
       email,
+      username,
       password: hashedPassword,
       userType: 'victim',
       firstName,
@@ -74,6 +82,7 @@ const register = async (req, res) => {
         userId: user._id, 
         userType: user.userType,
         email: user.email,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName
       }
@@ -132,9 +141,9 @@ const verifyEmail = async (req, res) => {
 // Victim login (only if verified)
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ username });
     if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
 
     if (!user.isVerified) {
@@ -160,6 +169,7 @@ const login = async (req, res) => {
       user: {
         ...payload,
         email: user.email,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName
       }

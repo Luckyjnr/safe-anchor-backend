@@ -20,12 +20,20 @@ const s3 = new AWS.S3({
 // Register expert with email verification
 const registerExpert = async (req, res) => {
   try {
-    const { email, password, confirmPassword, firstName, lastName, phone, specialization } = req.body;
+    const { email, username, password, confirmPassword, firstName, lastName, phone, specialization } = req.body;
     if (password !== confirmPassword) {
       return res.status(400).json({ msg: 'Passwords do not match' });
     }
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: 'User already exists' });
+    
+    // Check if email or username already exists
+    let user = await User.findOne({ $or: [{ email }, { username }] });
+    if (user) {
+      if (user.email === email) {
+        return res.status(400).json({ msg: 'Email already exists' });
+      } else {
+        return res.status(400).json({ msg: 'Username already exists' });
+      }
+    }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -35,6 +43,7 @@ const registerExpert = async (req, res) => {
 
     user = new User({
       email,
+      username,
       password: hashedPassword,
       userType: 'expert',
       firstName,
@@ -70,6 +79,7 @@ const registerExpert = async (req, res) => {
         userId: user._id, 
         userType: user.userType,
         email: user.email,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName
       }

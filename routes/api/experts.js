@@ -55,6 +55,7 @@ module.exports = router;
  *             type: object
  *             required:
  *               - email
+ *               - username
  *               - password
  *               - confirmPassword
  *               - firstName
@@ -65,6 +66,10 @@ module.exports = router;
  *                 type: string
  *                 format: email
  *                 description: Expert's email address
+ *               username:
+ *                 type: string
+ *                 minLength: 3
+ *                 description: Unique username for expert
  *               password:
  *                 type: string
  *                 minLength: 6

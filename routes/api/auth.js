@@ -37,6 +37,7 @@ module.exports = router;
  *             type: object
  *             required:
  *               - email
+ *               - username
  *               - password
  *               - confirmPassword
  *               - firstName
@@ -47,6 +48,10 @@ module.exports = router;
  *                 type: string
  *                 format: email
  *                 description: User's email address
+ *               username:
+ *                 type: string
+ *                 minLength: 3
+ *                 description: Unique username for login
  *               password:
  *                 type: string
  *                 minLength: 6
@@ -202,14 +207,45 @@ module.exports = router;
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - username
+ *               - password
  *             properties:
- *               email:
+ *               username:
  *                 type: string
+ *                 description: User's username
  *               password:
  *                 type: string
+ *                 description: User's password
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: JWT access token
+ *                 refreshToken:
+ *                   type: string
+ *                   description: Refresh token
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     userType:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *                     firstName:
+ *                       type: string
+ *                     lastName:
+ *                       type: string
  *       400:
  *         description: Invalid credentials
  *       401:
