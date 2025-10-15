@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const Victim = require('../models/Victim'); // <-- Add this import
+const Victim = require('../models/Victim');
 const RefreshToken = require('../models/RefreshToken');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const transporter = require('../config/email'); // Nodemailer config
 const { generateOTP } = require('../utils/otpGenerator');
 const { generateOTPEmailTemplate } = require('../utils/emailTemplates');
-const { storeOTP, verifyOTP, hasValidOTP, removeOTP } = require('../utils/otpStorage');
+const { storeOTP, verifyOTP } = require('../utils/otpStorage');
 
 // Helper to generate tokens
 const generateTokens = (user) => {
@@ -17,7 +17,9 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-// Victim registration with email verification
+// =============================
+// 📩 REGISTER CONTROLLER
+// =============================
 const register = async (req, res) => {
   try {
     const { email, username, password, confirmPassword, firstName, lastName, phone } = req.body;
@@ -29,17 +31,11 @@ const register = async (req, res) => {
     // Check if email or username already exists
     let user = await User.findOne({ $or: [{ email }, { username }] });
     if (user) {
-      if (user.email === email) {
-        return res.status(400).json({ msg: 'Email already exists' });
-      } else {
-        return res.status(400).json({ msg: 'Username already exists' });
-      }
+      return res.status(400).json({ msg: user.email === email ? 'Email already exists' : 'Username already exists' });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Generate OTP for email verification (not stored in database)
     const emailVerificationOTP = generateOTP();
 
     user = new User({
@@ -51,35 +47,36 @@ const register = async (req, res) => {
       lastName,
       phone,
       isVerified: false
-      // OTP is NOT stored in database - only sent via email
     });
 
     await user.save();
-
-    // Create Victim document after user registration
     await new Victim({ userId: user._id }).save();
 
-    // Store OTP in memory (not database)
     storeOTP(user.email, emailVerificationOTP, 'victim', firstName || 'User');
 
-    // Send OTP verification email
-    const emailTemplate = generateOTPEmailTemplate(
-      emailVerificationOTP, 
-      firstName || 'User', 
-      'victim'
-    );
-    
-    await transporter.sendMail({
-      from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: '🔐 Verify Your Email - Safe Anchor',
-      html: emailTemplate
-    });
+    const emailTemplate = generateOTPEmailTemplate(emailVerificationOTP, firstName || 'User', 'victim');
+
+    // ===== DEBUG LOGGING =====
+    console.log("📧 Attempting to send OTP to:", user.email);
+    console.log("📨 Generated OTP:", emailVerificationOTP);
+
+    try {
+      const info = await transporter.sendMail({
+        from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: '🔐 Verify Your Email - Safe Anchor',
+        html: emailTemplate
+      });
+
+      console.log("✅ Email sent successfully:", info.response);
+    } catch (error) {
+      console.error("❌ Email sending error:", error);
+    }
 
     res.status(201).json({
       msg: 'Registration successful. Please check your email to verify your account.',
-      user: { 
-        userId: user._id, 
+      user: {
+        userId: user._id,
         userType: user.userType,
         email: user.email,
         username: user.username,
@@ -88,11 +85,14 @@ const register = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('❌ Register error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 };
 
-// Email verification endpoint - OTP only (no email required)
+// =============================
+// 📩 VERIFY EMAIL
+// =============================
 const verifyEmail = async (req, res) => {
   try {
     const { otp } = req.body;
@@ -101,29 +101,23 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ msg: 'OTP is required' });
     }
 
-    // Validate OTP from memory storage (finds user by OTP)
     const validation = verifyOTP(otp);
-    
+
     if (!validation.success) {
       return res.status(400).json({ msg: validation.message });
     }
 
-    // Find user by email (returned from OTP validation)
     const user = await User.findOne({ email: validation.email });
-    if (!user) {
-      return res.status(400).json({ msg: 'User not found' });
-    }
+    if (!user) return res.status(400).json({ msg: 'User not found' });
 
-    // Check if user is already verified
     if (user.isVerified) {
-      return res.status(400).json({ msg: 'Email is already verified' });
+      return res.status(400).json({ msg: 'Email already verified' });
     }
 
-    // Verify user (OTP is automatically removed from memory after verification)
     user.isVerified = true;
     await user.save();
 
-    res.json({ 
+    res.json({
       msg: 'Email verified successfully. You can now log in.',
       user: {
         userId: user._id,
@@ -138,7 +132,9 @@ const verifyEmail = async (req, res) => {
   }
 };
 
-// Victim login (only if verified)
+// =============================
+// 🔐 LOGIN
+// =============================
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -175,20 +171,18 @@ const login = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 };
 
+// =============================
+// 🔐 LOGOUT
+// =============================
 const logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
-    console.log('Logout request:', { refreshToken: refreshToken ? 'provided' : 'missing' });
-    
-    if (refreshToken) {
-      await RefreshToken.deleteOne({ token: refreshToken });
-    }
-    
+    if (refreshToken) await RefreshToken.deleteOne({ token: refreshToken });
     res.json({ msg: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', err);
@@ -196,6 +190,9 @@ const logout = async (req, res) => {
   }
 };
 
+// =============================
+// 🔁 REFRESH TOKEN
+// =============================
 const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -203,11 +200,11 @@ const refreshToken = async (req, res) => {
     if (!storedToken || storedToken.expiresAt < Date.now()) {
       return res.status(401).json({ msg: 'Invalid or expired refresh token' });
     }
+
     const user = await User.findById(storedToken.userId);
     if (!user) return res.status(401).json({ msg: 'User not found' });
 
     const tokens = generateTokens(user);
-
     await RefreshToken.deleteOne({ token: refreshToken });
     await new RefreshToken({
       userId: user._id,
@@ -217,51 +214,61 @@ const refreshToken = async (req, res) => {
 
     res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken });
   } catch (err) {
+    console.error('Refresh token error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 };
 
-// Forgot password with 6-digit code email integration
+// =============================
+// 🔑 FORGOT PASSWORD
+// =============================
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: 'User not found' });
 
-    // Generate a random 6-digit code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     user.resetPasswordCode = resetCode;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    await transporter.sendMail({
-      from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: 'Password Reset Code',
-      html: `
-        <p>You requested a password reset for your Safe Anchor account.</p>
-        <p>Copy the code below to reset your password:</p>
-        <h2>${resetCode}</h2>
-        <p>If you did not request this, please ignore this email.</p>
-      `
-    });
+    console.log("📧 Attempting to send password reset code to:", email);
+    console.log("📨 Generated reset code:", resetCode);
 
-    res.json({ msg: 'reset code sent' });
+    try {
+      const info = await transporter.sendMail({
+        from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: 'Password Reset Code',
+        html: `
+          <p>You requested a password reset for your Safe Anchor account.</p>
+          <p>Copy the code below to reset your password:</p>
+          <h2>${resetCode}</h2>
+          <p>If you did not request this, please ignore this email.</p>
+        `
+      });
+
+      console.log("✅ Password reset email sent:", info.response);
+    } catch (error) {
+      console.error("❌ Password reset email error:", error);
+    }
+
+    res.json({ msg: 'Reset code sent' });
   } catch (err) {
+    console.error('Forgot password error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 };
 
-// Reset password with 6-digit code
+// =============================
+// 🔑 RESET PASSWORD
+// =============================
 const resetPassword = async (req, res) => {
   try {
     const { email, resetCode, password, newPassword, confirmPassword } = req.body;
-    
-    // Use newPassword if provided, otherwise use password
     const actualPassword = newPassword || password;
-    
-    console.log('Reset password request:', { email, resetCode, password: actualPassword ? 'provided' : 'missing', confirmPassword: confirmPassword ? 'provided' : 'missing' });
-    
+
     if (actualPassword !== confirmPassword) {
       return res.status(400).json({ msg: 'Passwords do not match' });
     }
@@ -271,9 +278,7 @@ const resetPassword = async (req, res) => {
       resetPasswordCode: resetCode,
       resetPasswordExpires: { $gt: Date.now() }
     });
-    
-    console.log('User found:', user ? 'Yes' : 'No');
-    
+
     if (!user) return res.status(400).json({ msg: 'Invalid or expired code' });
 
     const salt = await bcrypt.genSalt(10);
@@ -289,46 +294,39 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Resend OTP for email verification (no database storage)
+// =============================
+// 🔁 RESEND OTP
+// =============================
 const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ msg: 'Email is required' });
-    }
+    if (!email) return res.status(400).json({ msg: 'Email is required' });
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ msg: 'User not found' });
-    }
+    if (!user) return res.status(400).json({ msg: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ msg: 'Email already verified' });
 
-    // Check if user is already verified
-    if (user.isVerified) {
-      return res.status(400).json({ msg: 'Email is already verified' });
-    }
-
-    // Generate new OTP
     const emailVerificationOTP = generateOTP();
-
-    // Store new OTP in memory (replaces any existing OTP for this email)
     storeOTP(user.email, emailVerificationOTP, user.userType, user.firstName || 'User');
 
-    // Send new OTP email
-    const emailTemplate = generateOTPEmailTemplate(
-      emailVerificationOTP, 
-      user.firstName || 'User', 
-      user.userType
-    );
-    
-    await transporter.sendMail({
-      from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: '🔐 New Verification Code - Safe Anchor',
-      html: emailTemplate
-    });
+    const emailTemplate = generateOTPEmailTemplate(emailVerificationOTP, user.firstName || 'User', user.userType);
 
-    res.json({ 
+    console.log("📧 Attempting to resend OTP to:", user.email);
+    console.log("📨 New OTP generated:", emailVerificationOTP);
+
+    try {
+      const info = await transporter.sendMail({
+        from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: '🔐 New Verification Code - Safe Anchor',
+        html: emailTemplate
+      });
+      console.log("✅ Resend OTP email sent:", info.response);
+    } catch (error) {
+      console.error("❌ Resend OTP email error:", error);
+    }
+
+    res.json({
       msg: 'New verification code sent to your email. Please check your inbox.',
       expiresIn: '10 minutes'
     });

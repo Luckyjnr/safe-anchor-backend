@@ -10,4 +10,14 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Debug connection
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Gmail connection failed:', error);
+  } else {
+    console.log('✅ Gmail SMTP connection successful!');
+  }
+});
+
+
 module.exports = transporter;
