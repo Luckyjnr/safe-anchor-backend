@@ -1,24 +1,43 @@
-// routes/debugRoutes.js
-const express = require('express');
+// routes/api/debugRoutes.js
+const express = require("express");
 const router = express.Router();
-const transporter = require('../../config/email');
+const sendEmail = require("../../config/email"); // ✅ CommonJS import
 
-router.get('/debug/email', async (req, res) => {
+router.get("/debug/email", async (req, res) => {
   try {
-    console.log('📦 Testing Gmail SMTP...');
-    const info = await transporter.sendMail({
-      from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL}>`,
-      to: process.env.GMAIL_USER, // send test to yourself
-      subject: '🔧 Gmail Production Debug',
-      text: 'This is a test email from your deployed backend.',
-    });
+    console.log("🚀 Testing Resend Email...");
 
-    console.log('✅ Email sent successfully:', info.response);
-    res.json({ msg: 'Email sent successfully', info });
-  } catch (err) {
-    console.error('❌ Email sending failed:', err);
-    res.status(500).json({ error: err.message });
+    const info = await sendEmail(
+      "luckykelimu@gmail.com",
+      "✅ Test Email from Safe Anchor",
+      {
+        text: "Hello! Your Resend setup works perfectly 🎉",
+        html: "<p>Hello! Your <b>Resend</b> setup works perfectly 🎉</p>",
+      }
+    );
+
+    console.log("✅ Email sent successfully:", info);
+    res.json({ msg: "Email sent successfully", info });
+  } catch (error) {
+    console.error("❌ Email sending failed:", error);
+    res.status(500).json({
+      error: "Email sending failed",
+      details: error.message,
+    });
   }
+});
+
+router.get("/debug/test-otp", async (req, res) => {
+  const sendEmail = require("../../config/email");
+  const info = await sendEmail(
+    "your@gmail.com",
+    "SafeAnchor OTP Test",
+    {
+      text: "Your OTP is 123456",
+      html: "<h2>SafeAnchor OTP</h2><p>Your OTP is <b>123456</b></p>"
+    }
+  );
+  res.json({ msg: "Sent", info });
 });
 
 module.exports = router;

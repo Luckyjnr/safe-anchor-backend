@@ -4,12 +4,14 @@ const RefreshToken = require('../models/RefreshToken');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const transporter = require('../config/email'); // Nodemailer config
+const sendEmail = require('../config/email'); // ✅ Using Resend now
 const { generateOTP } = require('../utils/otpGenerator');
 const { generateOTPEmailTemplate } = require('../utils/emailTemplates');
 const { storeOTP, verifyOTP } = require('../utils/otpStorage');
 
-// Helper to generate tokens
+// =============================
+// 🎯 HELPER: GENERATE TOKENS
+// =============================
 const generateTokens = (user) => {
   const payload = { userId: user._id, userType: user.userType };
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -31,7 +33,9 @@ const register = async (req, res) => {
     // Check if email or username already exists
     let user = await User.findOne({ $or: [{ email }, { username }] });
     if (user) {
-      return res.status(400).json({ msg: user.email === email ? 'Email already exists' : 'Username already exists' });
+      return res.status(400).json({
+        msg: user.email === email ? 'Email already exists' : 'Username already exists',
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -46,31 +50,31 @@ const register = async (req, res) => {
       firstName,
       lastName,
       phone,
-      isVerified: false
+      isVerified: false,
     });
 
     await user.save();
     await new Victim({ userId: user._id }).save();
 
     storeOTP(user.email, emailVerificationOTP, 'victim', firstName || 'User');
-
     const emailTemplate = generateOTPEmailTemplate(emailVerificationOTP, firstName || 'User', 'victim');
 
-    // ===== DEBUG LOGGING =====
-    console.log("📧 Attempting to send OTP to:", user.email);
-    console.log("📨 Generated OTP:", emailVerificationOTP);
+    console.log('📧 Attempting to send OTP via Resend to:', user.email);
+    console.log('📨 Generated OTP:', emailVerificationOTP);
 
     try {
-      const info = await transporter.sendMail({
-        from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
-        to: user.email,
-        subject: '🔐 Verify Your Email - Safe Anchor',
-        html: emailTemplate
-      });
-
-      console.log("✅ Email sent successfully:", info.response);
+      // ✅ FIXED sendEmail usage
+      await sendEmail(
+        user.email,
+        '🔐 Verify Your Email - Safe Anchor',
+        {
+          text: `Your verification code is ${emailVerificationOTP}`,
+          html: emailTemplate,
+        }
+      );
+      console.log('✅ Email sent successfully via Resend');
     } catch (error) {
-      console.error("❌ Email sending error:", error);
+      console.error('❌ Email sending error (Resend):', error.message);
     }
 
     res.status(201).json({
@@ -81,8 +85,8 @@ const register = async (req, res) => {
         email: user.email,
         username: user.username,
         firstName: user.firstName,
-        lastName: user.lastName
-      }
+        lastName: user.lastName,
+      },
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -123,8 +127,8 @@ const verifyEmail = async (req, res) => {
         userId: user._id,
         email: user.email,
         userType: user.userType,
-        isVerified: user.isVerified
-      }
+        isVerified: user.isVerified,
+      },
     });
   } catch (err) {
     console.error('Email verification error:', err);
@@ -156,7 +160,7 @@ const login = async (req, res) => {
     await new RefreshToken({
       userId: user._id,
       token: refreshTokenValue,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     }).save();
 
     res.json({
@@ -167,8 +171,8 @@ const login = async (req, res) => {
         email: user.email,
         username: user.username,
         firstName: user.firstName,
-        lastName: user.lastName
-      }
+        lastName: user.lastName,
+      },
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -209,7 +213,7 @@ const refreshToken = async (req, res) => {
     await new RefreshToken({
       userId: user._id,
       token: tokens.refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     }).save();
 
     res.json({ token: tokens.accessToken, refreshToken: tokens.refreshToken });
@@ -233,27 +237,27 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    console.log("📧 Attempting to send password reset code to:", email);
-    console.log("📨 Generated reset code:", resetCode);
+    console.log('📧 Sending password reset via Resend:', email);
+    console.log('📨 Reset code:', resetCode);
 
-    try {
-      const info = await transporter.sendMail({
-        from: `"Safe Anchor" <${process.env.EMAIL_USER}>`,
-        to: user.email,
-        subject: 'Password Reset Code',
-        html: `
-          <p>You requested a password reset for your Safe Anchor account.</p>
-          <p>Copy the code below to reset your password:</p>
-          <h2>${resetCode}</h2>
-          <p>If you did not request this, please ignore this email.</p>
-        `
-      });
+    const html = `
+      <p>You requested a password reset for your Safe Anchor account.</p>
+      <p>Copy the code below to reset your password:</p>
+      <h2>${resetCode}</h2>
+      <p>If you did not request this, please ignore this email.</p>
+    `;
 
-      console.log("✅ Password reset email sent:", info.response);
-    } catch (error) {
-      console.error("❌ Password reset email error:", error);
-    }
+    // ✅ FIXED sendEmail call
+    await sendEmail(
+      user.email,
+      'Safe Anchor - Password Reset Code',
+      {
+        text: `Your password reset code is ${resetCode}`,
+        html,
+      }
+    );
 
+    console.log('✅ Password reset email sent via Resend');
     res.json({ msg: 'Reset code sent' });
   } catch (err) {
     console.error('Forgot password error:', err);
@@ -276,7 +280,7 @@ const resetPassword = async (req, res) => {
     const user = await User.findOne({
       email,
       resetPasswordCode: resetCode,
-      resetPasswordExpires: { $gt: Date.now() }
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) return res.status(400).json({ msg: 'Invalid or expired code' });
@@ -311,24 +315,23 @@ const resendOTP = async (req, res) => {
 
     const emailTemplate = generateOTPEmailTemplate(emailVerificationOTP, user.firstName || 'User', user.userType);
 
-    console.log("📧 Attempting to resend OTP to:", user.email);
-    console.log("📨 New OTP generated:", emailVerificationOTP);
+    console.log('📧 Resending OTP via Resend:', user.email);
+    console.log('📨 New OTP generated:', emailVerificationOTP);
 
-    try {
-      const info = await transporter.sendMail({
-        from: `"Safe Anchor" <${process.env.GMAIL_FROM_EMAIL || process.env.EMAIL_USER}>`,
-        to: user.email,
-        subject: '🔐 New Verification Code - Safe Anchor',
-        html: emailTemplate
-      });
-      console.log("✅ Resend OTP email sent:", info.response);
-    } catch (error) {
-      console.error("❌ Resend OTP email error:", error);
-    }
+    // ✅ FIXED sendEmail usage
+    await sendEmail(
+      user.email,
+      '🔐 New Verification Code - Safe Anchor',
+      {
+        text: `Your new verification code is ${emailVerificationOTP}`,
+        html: emailTemplate,
+      }
+    );
 
+    console.log('✅ Resend OTP email sent via Resend');
     res.json({
       msg: 'New verification code sent to your email. Please check your inbox.',
-      expiresIn: '10 minutes'
+      expiresIn: '10 minutes',
     });
   } catch (err) {
     console.error('Resend OTP error:', err);
@@ -344,5 +347,5 @@ module.exports = {
   logout,
   refreshToken,
   forgotPassword,
-  resetPassword
+  resetPassword,
 };

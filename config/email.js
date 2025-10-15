@@ -1,23 +1,26 @@
-const nodemailer = require('nodemailer');
+// config/email.js
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // true for 465, false for other ports
-  auth: {
-    user: process.env.GMAIL_USER, // your Gmail address
-    pass: process.env.GMAIL_APP_PASSWORD // your 16-character app password
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function sendEmail(to, subject, content = {}) {
+  try {
+    const { text = "", html = "" } = content; // ✅ Safe destructuring
+
+    const response = await resend.emails.send({
+      from: "SafeAnchor <no-reply@safeanchor.com.ng>", // ✅ verified domain
+      to,
+      subject,
+      text,
+      html,
+    });
+
+    console.log("✅ Email sent successfully via Resend:", response.data);
+    return response;
+  } catch (error) {
+    console.error("❌ Failed to send email:", error.message);
+    throw error;
   }
-});
+}
 
-// Debug connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Gmail connection failed:', error);
-  } else {
-    console.log('✅ Gmail SMTP connection successful!');
-  }
-});
-
-
-module.exports = transporter;
+module.exports = sendEmail; // ✅ CommonJS export
