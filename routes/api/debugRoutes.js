@@ -1,7 +1,7 @@
 // routes/debugRoutes.js
 const express = require('express');
 const router = express.Router();
-const transporter = require('../config/email');
+const transporter = require('../../config/email');
 
 router.get('/debug/email', async (req, res) => {
   try {
